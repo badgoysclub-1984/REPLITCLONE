@@ -34,6 +34,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Bolt
 import androidx.compose.material.icons.rounded.Code
 import androidx.compose.material.icons.rounded.Description
@@ -49,10 +50,10 @@ import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -69,6 +70,7 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.replitclone.app.ui.theme.ReplitCloneTheme
 import kotlinx.coroutines.delay
@@ -124,6 +126,7 @@ fun ReplitCloneScreen() {
     }
 
     var selectedIndex by remember { mutableStateOf(0) }
+    var fileQuery by remember { mutableStateOf("") }
     var runOutput by remember { mutableStateOf("Ready. Press Run.") }
     var isRunning by remember { mutableStateOf(false) }
     val activeFile = files[selectedIndex]
@@ -151,19 +154,43 @@ fun ReplitCloneScreen() {
                 .windowInsetsPadding(WindowInsets.statusBars)
                 .windowInsetsPadding(WindowInsets.navigationBars)
                 .windowInsetsPadding(WindowInsets.ime)
-                .padding(horizontal = 12.dp, vertical = 10.dp)
+                .padding(horizontal = 10.dp, vertical = 8.dp)
         ) {
             val isCompact = maxWidth < 700.dp
-            val consoleHeight by animateDpAsState(targetValue = if (isRunning) 220.dp else 180.dp, label = "consoleHeight")
+            val isS24UltraPortraitLike = isCompact && maxWidth >= 390.dp && maxWidth <= 430.dp && maxHeight >= 860.dp
+            val cardRadius = if (isS24UltraPortraitLike) 14.dp else 18.dp
+            val sectionSpacing = if (isS24UltraPortraitLike) 8.dp else 10.dp
+            val consoleHeight by animateDpAsState(
+                targetValue = when {
+                    isS24UltraPortraitLike && isRunning -> 190.dp
+                    isS24UltraPortraitLike -> 155.dp
+                    isRunning -> 220.dp
+                    else -> 180.dp
+                },
+                label = "consoleHeight"
+            )
 
             if (isCompact) {
                 Column(
                     modifier = Modifier.fillMaxSize(),
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                    verticalArrangement = Arrangement.spacedBy(sectionSpacing)
                 ) {
                     WorkspaceHeader(
                         selectedFile = activeFile.path,
                         isRunning = isRunning,
+                        isCompact = true,
+                        cardRadius = cardRadius,
+                        onNewFile = {
+                            val newPath = "scratch_${files.size + 1}.py"
+                            files.add(
+                                CodeFile(
+                                    path = newPath,
+                                    content = "# New scratch file\nprint(\"Hello from $newPath\")"
+                                )
+                            )
+                            selectedIndex = files.lastIndex
+                            fileQuery = ""
+                        },
                         onRunClick = {
                         if (!isRunning) {
                             runOutput = ""
@@ -174,10 +201,12 @@ fun ReplitCloneScreen() {
                     FileStrip(files = files, selectedIndex = selectedIndex, onSelect = { selectedIndex = it })
                     EditorPane(
                         modifier = Modifier.weight(1f),
+                        cardRadius = cardRadius,
                         file = activeFile,
                         onContentChange = { files[selectedIndex] = activeFile.copy(content = it) }
                     )
                     OutputPane(
+                        cardRadius = cardRadius,
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(consoleHeight),
@@ -187,11 +216,24 @@ fun ReplitCloneScreen() {
             } else {
                 Column(
                     modifier = Modifier.fillMaxSize(),
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                    verticalArrangement = Arrangement.spacedBy(sectionSpacing)
                 ) {
                     WorkspaceHeader(
                         selectedFile = activeFile.path,
                         isRunning = isRunning,
+                        isCompact = false,
+                        cardRadius = cardRadius,
+                        onNewFile = {
+                            val newPath = "scratch_${files.size + 1}.py"
+                            files.add(
+                                CodeFile(
+                                    path = newPath,
+                                    content = "# New scratch file\nprint(\"Hello from $newPath\")"
+                                )
+                            )
+                            selectedIndex = files.lastIndex
+                            fileQuery = ""
+                        },
                         onRunClick = {
                         if (!isRunning) {
                             runOutput = ""
@@ -208,6 +250,8 @@ fun ReplitCloneScreen() {
                                 .fillMaxHeight()
                                 .width(250.dp),
                             files = files,
+                            fileQuery = fileQuery,
+                            onQueryChange = { fileQuery = it },
                             selectedIndex = selectedIndex,
                             onSelect = { selectedIndex = it }
                         )
@@ -215,15 +259,16 @@ fun ReplitCloneScreen() {
                             modifier = Modifier
                                 .fillMaxHeight()
                                 .weight(1f),
-                            verticalArrangement = Arrangement.spacedBy(10.dp)
+                            verticalArrangement = Arrangement.spacedBy(sectionSpacing)
                         ) {
                             FileStrip(files = files, selectedIndex = selectedIndex, onSelect = { selectedIndex = it })
                             EditorPane(
                                 modifier = Modifier.weight(1f),
+                                cardRadius = cardRadius,
                                 file = activeFile,
                                 onContentChange = { files[selectedIndex] = activeFile.copy(content = it) }
                             )
-                            OutputPane(modifier = Modifier.height(consoleHeight), output = runOutput)
+                            OutputPane(cardRadius = cardRadius, modifier = Modifier.height(consoleHeight), output = runOutput)
                         }
                     }
                 }
@@ -233,7 +278,14 @@ fun ReplitCloneScreen() {
 }
 
 @Composable
-private fun WorkspaceHeader(selectedFile: String, isRunning: Boolean, onRunClick: () -> Unit) {
+private fun WorkspaceHeader(
+    selectedFile: String,
+    isRunning: Boolean,
+    isCompact: Boolean,
+    cardRadius: Dp,
+    onNewFile: () -> Unit,
+    onRunClick: () -> Unit
+) {
     val runColor by animateColorAsState(
         targetValue = if (isRunning) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.primary,
         label = "runButtonColor"
@@ -241,7 +293,11 @@ private fun WorkspaceHeader(selectedFile: String, isRunning: Boolean, onRunClick
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
-        shape = RoundedCornerShape(18.dp)
+        shape = RoundedCornerShape(cardRadius),
+        border = androidx.compose.foundation.BorderStroke(
+            1.dp,
+            MaterialTheme.colorScheme.primary.copy(alpha = 0.22f)
+        )
     ) {
         Column(
             modifier = Modifier
@@ -255,40 +311,62 @@ private fun WorkspaceHeader(selectedFile: String, isRunning: Boolean, onRunClick
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                    Text("Replit Clone", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                    Text("Replit Clone", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                     Text(
                         "Focused coding workspace",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
-                ElevatedButton(
-                    onClick = onRunClick,
-                    enabled = !isRunning,
-                    colors = CardDefaults.elevatedCardColors(
-                        containerColor = runColor,
-                        contentColor = MaterialTheme.colorScheme.onPrimary
-                    ).let {
-                        androidx.compose.material3.ButtonDefaults.elevatedButtonColors(
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    ElevatedButton(
+                        onClick = onNewFile,
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Icon(Icons.Rounded.Add, contentDescription = null)
+                        if (!isCompact) {
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("New File")
+                        }
+                    }
+                    ElevatedButton(
+                        onClick = onRunClick,
+                        enabled = !isRunning,
+                        colors = CardDefaults.elevatedCardColors(
                             containerColor = runColor,
                             contentColor = MaterialTheme.colorScheme.onPrimary
-                        )
-                    },
-                    shape = RoundedCornerShape(12.dp)
+                        ).let {
+                            androidx.compose.material3.ButtonDefaults.elevatedButtonColors(
+                                containerColor = runColor,
+                                contentColor = MaterialTheme.colorScheme.onPrimary
+                            )
+                        },
+                        shape = RoundedCornerShape(12.dp)
                 ) {
-                    Icon(Icons.Rounded.PlayArrow, contentDescription = null)
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text(if (isRunning) "Running" else "Run")
+                        Icon(Icons.Rounded.PlayArrow, contentDescription = null)
+                        if (!isCompact) {
+                            Spacer(modifier = Modifier.width(6.dp))
+                        }
+                        Text(if (isRunning) "Running" else "Run")
+                    }
                 }
             }
 
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                StatChip(icon = Icons.Rounded.Code, label = "Active", value = selectedFile.substringAfterLast('/'))
-                StatChip(icon = Icons.Rounded.Memory, label = "Memory", value = "420 MB")
-                StatChip(icon = Icons.Rounded.Schedule, label = "Latency", value = "42 ms")
+            if (isCompact) {
+                Text(
+                    text = "Active: ${selectedFile.substringAfterLast('/')}",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.secondary
+                )
+            } else {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    StatChip(icon = Icons.Rounded.Code, label = "Active", value = selectedFile.substringAfterLast('/'))
+                    StatChip(icon = Icons.Rounded.Memory, label = "Memory", value = "420 MB")
+                    StatChip(icon = Icons.Rounded.Schedule, label = "Latency", value = "42 ms")
+                }
             }
         }
     }
@@ -321,9 +399,17 @@ private fun StatChip(icon: androidx.compose.ui.graphics.vector.ImageVector, labe
 private fun FileExplorer(
     modifier: Modifier,
     files: List<CodeFile>,
+    fileQuery: String,
+    onQueryChange: (String) -> Unit,
     selectedIndex: Int,
     onSelect: (Int) -> Unit
 ) {
+    val filteredIndices = remember(files, fileQuery) {
+        files.indices.filter { index ->
+            fileQuery.isBlank() || files[index].path.contains(fileQuery, ignoreCase = true)
+        }
+    }
+
     Card(
         modifier = modifier,
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
@@ -340,9 +426,18 @@ private fun FileExplorer(
                 Icon(Icons.Rounded.Folder, contentDescription = null)
                 Text("Workspace", style = MaterialTheme.typography.titleSmall)
             }
+            OutlinedTextField(
+                value = fileQuery,
+                onValueChange = onQueryChange,
+                label = { Text("Filter files") },
+                singleLine = true,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 12.dp)
+            )
             HorizontalDivider()
             LazyColumn(modifier = Modifier.fillMaxSize()) {
-                items(files.indices.toList()) { index ->
+                items(filteredIndices) { index ->
                     val item = files[index]
                     val selected = selectedIndex == index
                     Row(
@@ -359,6 +454,17 @@ private fun FileExplorer(
                     ) {
                         Icon(Icons.Rounded.Description, contentDescription = null)
                         Text(item.path, style = MaterialTheme.typography.bodyMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    }
+                }
+
+                if (filteredIndices.isEmpty()) {
+                    item {
+                        Text(
+                            text = "No files match filter",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(12.dp)
+                        )
                     }
                 }
             }
@@ -395,12 +501,13 @@ private fun FileStrip(
 @Composable
 private fun EditorPane(
     modifier: Modifier,
+    cardRadius: Dp,
     file: CodeFile,
     onContentChange: (String) -> Unit
 ) {
     Card(
         modifier = modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(18.dp),
+        shape = RoundedCornerShape(cardRadius),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer)
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
@@ -471,10 +578,10 @@ private fun EditorPane(
 }
 
 @Composable
-private fun OutputPane(modifier: Modifier, output: String) {
+private fun OutputPane(cardRadius: Dp, modifier: Modifier, output: String) {
     Card(
         modifier = modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(18.dp),
+        shape = RoundedCornerShape(cardRadius),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh)
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
@@ -520,7 +627,7 @@ private fun OutputPane(modifier: Modifier, output: String) {
     }
 }
 
-@Preview(showBackground = true, backgroundColor = 0xFF0D1320)
+@Preview(showBackground = true, backgroundColor = 0xFF030405)
 @Composable
 private fun ReplitClonePreview() {
     ReplitCloneTheme {

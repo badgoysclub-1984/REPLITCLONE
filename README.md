@@ -6,9 +6,13 @@ This repository now contains a native Android prototype of a Replit-style mobile
 
 - Workspace/file explorer panel (tablet and large screens)
 - File tabs for quick switching
+- New file action from the workspace header
+- File explorer filtering/search
 - Rich editor area with line numbers and animated status header
 - Run button with simulated execution pipeline and console output
 - Styled terminal output card with runtime info
+- Galaxy S24 Ultra optimized compact layout tuning (portrait)
+- Minimalistic black + neon-blue visual theme
 - Responsive layout:
 	- Compact mode for phones
 	- Multi-pane mode for tablets/foldables
@@ -167,6 +171,7 @@ Launching emulator may take 30–60 seconds. Wait for home screen.
 | Emulator won't start | Tools → Device Manager → right-click device → Wipe Data, then launch |
 | App crashes on launch | Rebuild: Build → Clean Project, then Build → Rebuild Project |
 | "Waiting for debugger" | Click ⏸️ Pause or wait 30s; if hangs, reconnect device/emulator |
+| Gradle/Kotlin daemon crash on release | `./gradlew --stop && ./gradlew --no-daemon :app:assembleRelease -x lint` |
 
 ### Build from Terminal
 
@@ -175,6 +180,12 @@ If you prefer command-line builds (after SDK setup):
 ```bash
 # Debug APK
 ./gradlew assembleDebug
+
+# Release APK
+./gradlew assembleRelease
+
+# Release AAB
+./gradlew bundleRelease
 
 # Install and run on emulator
 ./gradlew installDebug
