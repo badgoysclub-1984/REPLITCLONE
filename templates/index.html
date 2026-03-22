@@ -1,15 +1,134 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>REPLITCLONE</title>
     <link rel="stylesheet" href="/static/css/style.css">
 </head>
 <body>
-    <h1>Welcome to REPLITCLONE</h1>
-    <div class="editor">
-        <textarea id="code" placeholder="Write your code here..."></textarea>
+    <!-- Header -->
+    <header class="header">
+        <h1 class="header-title">REPLITCLONE</h1>
+        <div class="header-actions">
+            <!-- GitHub link status -->
+            {% if github_user %}
+            <div class="github-badge">
+                <img src="{{ github_user.avatar_url }}" alt="GitHub avatar" class="github-avatar">
+                <span class="github-username">{{ github_user.login }}</span>
+                <a href="/auth/github/logout" class="btn btn-sm btn-secondary">Disconnect</a>
+            </div>
+            {% else %}
+            <a href="/auth/github" class="btn btn-sm btn-github">
+                <svg class="github-icon" viewBox="0 0 16 16" width="16" height="16" fill="currentColor">
+                    <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38
+                    0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13
+                    -.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87
+                    2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95
+                    0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21
+                    2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04
+                    2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15
+                    0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01
+                    1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/>
+                </svg>
+                Link GitHub
+            </a>
+            {% endif %}
+            <!-- Settings toggle -->
+            <button class="btn btn-sm btn-secondary" onclick="toggleSettings()">⚙ Settings</button>
+        </div>
+    </header>
+
+    <!-- Settings Panel -->
+    <div id="settings-panel" class="settings-panel hidden">
+        <div class="settings-card">
+            <h2>Settings</h2>
+
+            <!-- Gemini API Key Section -->
+            <div class="settings-section">
+                <h3>Gemini AI Studio</h3>
+                <p class="settings-hint">
+                    Get your free API key at
+                    <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener">
+                        aistudio.google.com
+                    </a>.
+                </p>
+                <div class="settings-row">
+                    <input type="password" id="gemini-api-key" class="input-field"
+                           placeholder="AIza..."
+                           {% if gemini_configured %}value="••••••••••••••••"{% endif %}>
+                    <button class="btn btn-primary" onclick="saveGeminiKey()">Save</button>
+                    {% if gemini_configured %}
+                    <button class="btn btn-secondary" onclick="removeGeminiKey()">Remove</button>
+                    {% endif %}
+                </div>
+                <div id="gemini-status" class="status-msg"></div>
+            </div>
+
+            <!-- GitHub Section -->
+            <div class="settings-section">
+                <h3>GitHub Integration</h3>
+                {% if github_user %}
+                <p class="settings-hint">
+                    ✅ Connected as <strong>{{ github_user.login }}</strong>
+                    {% if github_user.name %}({{ github_user.name }}){% endif %}
+                </p>
+                <a href="/auth/github/logout" class="btn btn-secondary">Disconnect GitHub</a>
+                {% else %}
+                <p class="settings-hint">
+                    Link your GitHub account to clone, push, and pull repositories directly from REPLITCLONE.
+                    You'll need a
+                    <a href="https://github.com/settings/developers" target="_blank" rel="noopener">
+                        GitHub OAuth App
+                    </a>
+                    configured on the server.
+                </p>
+                <a href="/auth/github" class="btn btn-github">
+                    Link GitHub Account
+                </a>
+                {% endif %}
+            </div>
+
+            <button class="btn btn-secondary" onclick="toggleSettings()">Close</button>
+        </div>
     </div>
-    <button onclick="runCode()">Run Code</button>
+
+    <!-- Main Layout -->
+    <div class="main-layout">
+        <!-- Editor pane -->
+        <div class="editor-pane">
+            <div class="pane-header">
+                <span>Editor</span>
+                <button class="btn btn-primary" onclick="runCode()">▶ Run</button>
+            </div>
+            <textarea id="code" class="code-area" placeholder="Write your code here…"
+                      aria-label="Code editor" spellcheck="false"></textarea>
+            <div class="pane-header">Output</div>
+            <pre id="output" class="output-area"></pre>
+        </div>
+
+        <!-- AI Chat pane -->
+        <div class="chat-pane">
+            <div class="pane-header">
+                <span>✨ Gemini AI Assistant</span>
+                {% if not gemini_configured %}
+                <span class="badge badge-warn">API key needed</span>
+                {% else %}
+                <span class="badge badge-ok">Ready</span>
+                {% endif %}
+            </div>
+            <div id="chat-messages" class="chat-messages"></div>
+            <div class="chat-input-row">
+                <textarea id="chat-input" class="chat-input" rows="2"
+                          aria-label="Chat message input"
+                          placeholder="Ask Gemini anything about your code…"
+                          onkeydown="handleChatKey(event)"></textarea>
+                <button class="btn btn-primary" onclick="sendChat()">Send</button>
+            </div>
+        </div>
+    </div>
+
     <script src="/static/js/main.js"></script>
 </body>
 </html>
+
