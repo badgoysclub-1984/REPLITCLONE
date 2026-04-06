@@ -26,7 +26,8 @@ def home():
     """Render the main editor page."""
     return render_template('index.html',
                            github_user=session.get('github_user'),
-                           gemini_configured=bool(session.get('gemini_api_key')))
+                           gemini_configured=bool(session.get('gemini_api_key')),
+                           repo_key_configured=bool(session.get('repo_link_key')))
 
 
 @app.route('/run', methods=['POST'])
@@ -179,6 +180,35 @@ def github_status():
     if user:
         return jsonify({'linked': True, 'user': user})
     return jsonify({'linked': False})
+
+
+# ---------------------------------------------------------------------------
+# Repository Link Key
+# ---------------------------------------------------------------------------
+
+_REPO_KEY_PREFIX = 'rlk_'
+
+
+@app.route('/api/repo-link-key', methods=['POST'])
+def generate_repo_link_key():
+    """Generate a new repository link key and store it in the session."""
+    key = _REPO_KEY_PREFIX + secrets.token_hex(32)
+    session['repo_link_key'] = key
+    return jsonify({'status': 'ok', 'key': key})
+
+
+@app.route('/api/repo-link-key', methods=['GET'])
+def get_repo_link_key_status():
+    """Return whether a repository link key is currently configured."""
+    configured = bool(session.get('repo_link_key'))
+    return jsonify({'configured': configured})
+
+
+@app.route('/api/repo-link-key', methods=['DELETE'])
+def revoke_repo_link_key():
+    """Revoke (remove) the current repository link key from the session."""
+    session.pop('repo_link_key', None)
+    return jsonify({'status': 'ok', 'message': 'Repository link key revoked'})
 
 
 if __name__ == "__main__":

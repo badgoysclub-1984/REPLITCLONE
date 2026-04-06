@@ -152,6 +152,54 @@ class TestServerRoutes(unittest.TestCase):
         data = json.loads(resp.data)
         self.assertIn('Error', data['output'])
 
+    # ------------------------------------------------------------------
+    # Repository Link Key
+    # ------------------------------------------------------------------
+
+    def test_generate_repo_link_key_returns_key(self):
+        resp = self.client.post('/api/repo-link-key')
+        self.assertEqual(resp.status_code, 200)
+        data = json.loads(resp.data)
+        self.assertEqual(data['status'], 'ok')
+        self.assertIn('key', data)
+        self.assertTrue(data['key'].startswith('rlk_'))
+        self.assertGreater(len(data['key']), 10)
+
+    def test_get_repo_link_key_status_not_configured(self):
+        resp = self.client.get('/api/repo-link-key')
+        self.assertEqual(resp.status_code, 200)
+        data = json.loads(resp.data)
+        self.assertFalse(data['configured'])
+
+    def test_get_repo_link_key_status_configured(self):
+        # Generate a key first
+        self.client.post('/api/repo-link-key')
+        resp = self.client.get('/api/repo-link-key')
+        self.assertEqual(resp.status_code, 200)
+        data = json.loads(resp.data)
+        self.assertTrue(data['configured'])
+
+    def test_revoke_repo_link_key(self):
+        # Generate a key then revoke it
+        self.client.post('/api/repo-link-key')
+        resp = self.client.delete('/api/repo-link-key')
+        self.assertEqual(resp.status_code, 200)
+        data = json.loads(resp.data)
+        self.assertEqual(data['status'], 'ok')
+        # Verify it's gone
+        status_resp = self.client.get('/api/repo-link-key')
+        status_data = json.loads(status_resp.data)
+        self.assertFalse(status_data['configured'])
+
+    def test_regenerate_repo_link_key_returns_different_key(self):
+        # Generate first key
+        resp1 = self.client.post('/api/repo-link-key')
+        key1 = json.loads(resp1.data)['key']
+        # Generate second key
+        resp2 = self.client.post('/api/repo-link-key')
+        key2 = json.loads(resp2.data)['key']
+        self.assertNotEqual(key1, key2)
+
 
 if __name__ == '__main__':
     unittest.main()
