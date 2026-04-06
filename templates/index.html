@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>REPLITCLONE</title>
     <link rel="stylesheet" href="/static/css/style.css">
+    <!-- xterm.js terminal emulator -->
+    <link rel="stylesheet" href="/static/vendor/xterm.css">
 </head>
 <body>
     <!-- Header -->
@@ -36,6 +38,8 @@
             {% endif %}
             <!-- Settings toggle -->
             <button class="btn btn-sm btn-secondary" onclick="toggleSettings()">⚙ Settings</button>
+            <!-- Terminal toggle -->
+            <button class="btn btn-sm btn-terminal" id="terminal-toggle-btn" onclick="toggleTerminalPanel()">⬛ Terminal</button>
         </div>
     </header>
 
@@ -93,6 +97,36 @@
         </div>
     </div>
 
+    <!-- SSH Connect Modal -->
+    <div id="ssh-modal" class="settings-panel hidden">
+        <div class="settings-card">
+            <h2>Connect to SSH Terminal</h2>
+            <div class="settings-section">
+                <div class="settings-row">
+                    <label class="input-label" for="ssh-host">Host</label>
+                    <input type="text" id="ssh-host" class="input-field" value="192.168.1.56">
+                </div>
+                <div class="settings-row">
+                    <label class="input-label" for="ssh-port">Port</label>
+                    <input type="number" id="ssh-port" class="input-field input-field-sm" value="22" min="1" max="65535">
+                </div>
+                <div class="settings-row">
+                    <label class="input-label" for="ssh-username">Username</label>
+                    <input type="text" id="ssh-username" class="input-field" placeholder="user" autocomplete="username">
+                </div>
+                <div class="settings-row">
+                    <label class="input-label" for="ssh-password">Password</label>
+                    <input type="password" id="ssh-password" class="input-field" placeholder="••••••••" autocomplete="current-password">
+                </div>
+                <div id="ssh-connect-status" class="status-msg"></div>
+            </div>
+            <div class="settings-row">
+                <button class="btn btn-primary" onclick="sshConnect()">Connect</button>
+                <button class="btn btn-secondary" onclick="closeSshModal()">Cancel</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Main Layout -->
     <div class="main-layout">
         <!-- Editor pane -->
@@ -128,6 +162,25 @@
         </div>
     </div>
 
+    <!-- Terminal Panel (bottom, collapsible) -->
+    <div id="terminal-panel" class="terminal-panel hidden">
+        <div class="terminal-toolbar">
+            <span class="terminal-toolbar-title">
+                ⬛ SSH Terminal
+                <span id="ssh-status-badge" class="badge badge-warn">Disconnected</span>
+            </span>
+            <div class="terminal-toolbar-actions">
+                <button class="btn btn-sm btn-primary" id="ssh-action-btn" onclick="openSshModal()">Connect</button>
+                <button class="btn btn-sm btn-secondary" onclick="toggleTerminalPanel()">✕</button>
+            </div>
+        </div>
+        <div id="terminal-container" class="terminal-container"></div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="/static/vendor/xterm.js"></script>
+    <script src="/static/vendor/xterm-addon-fit.js"></script>
+    <script src="/static/vendor/socket.io.min.js"></script>
     <script src="/static/js/main.js"></script>
 </body>
 </html>
