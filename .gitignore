@@ -6,3 +6,4 @@ venv/
 *.db
 .vscode/
 node_modules/
+test.py
