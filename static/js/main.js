@@ -135,6 +135,9 @@ function handleChatKey(event) {
 
 /* ── SSH Terminal ───────────────────────────────────────── */
 
+const _SSH_DEFAULT_COLS = 220;
+const _SSH_DEFAULT_ROWS = 50;
+
 let _term = null;
 let _fitAddon = null;
 let _socket = null;
@@ -152,6 +155,8 @@ function _initTerminal() {
         fontSize: 14,
         cursorBlink: true,
         scrollback: 5000,
+        cols: _SSH_DEFAULT_COLS,
+        rows: _SSH_DEFAULT_ROWS,
     });
     _fitAddon = new FitAddon.FitAddon();
     _term.loadAddon(_fitAddon);
@@ -261,8 +266,8 @@ function sshConnect() {
     _initTerminal();
     _initSocket();
 
-    const cols = _term ? _term.cols : 220;
-    const rows = _term ? _term.rows : 50;
+    const cols = _term ? _term.cols : _SSH_DEFAULT_COLS;
+    const rows = _term ? _term.rows : _SSH_DEFAULT_ROWS;
 
     setStatus(document.getElementById('ssh-connect-status'), 'Connecting…', '');
     _socket.emit('ssh_connect', { host: host.trim(), port: port, username: username.trim(), password: password, cols: cols, rows: rows });

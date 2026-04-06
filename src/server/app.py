@@ -193,6 +193,11 @@ def github_status():
 # SSH Terminal – Socket.IO events
 # ---------------------------------------------------------------------------
 
+def _emit_ssh_output(sid, raw_bytes):
+    """Decode raw bytes from an SSH channel and forward them to the client."""
+    socketio.emit('ssh_output', {'data': raw_bytes.decode('utf-8', errors='replace')}, to=sid)
+
+
 def _ssh_reader(sid, channel):
     """Background thread: read SSH channel output and forward to the client."""
     try:
@@ -203,13 +208,11 @@ def _ssh_reader(sid, channel):
                 data = channel.recv(4096)
                 if not data:
                     break
-                socketio.emit('ssh_output', {'data': data.decode('utf-8', errors='replace')},
-                              to=sid)
+                _emit_ssh_output(sid, data)
             if channel.recv_stderr_ready():
                 data = channel.recv_stderr(4096)
                 if data:
-                    socketio.emit('ssh_output', {'data': data.decode('utf-8', errors='replace')},
-                                  to=sid)
+                    _emit_ssh_output(sid, data)
             socketio.sleep(0.05)
     except Exception:
         pass
@@ -263,7 +266,10 @@ def handle_ssh_connect(data):
     try:
         client.load_host_keys(os.path.expanduser('~/.ssh/known_hosts'))
     except (FileNotFoundError, OSError):
+        # known_hosts not present; RejectPolicy below will reject unknown hosts
         pass
+    # RejectPolicy prevents MITM attacks by refusing connections to hosts not
+    # present in the system or user known_hosts file.
     client.set_missing_host_key_policy(paramiko.RejectPolicy())
 
     try:
