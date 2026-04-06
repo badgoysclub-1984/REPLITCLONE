@@ -89,6 +89,26 @@
                 {% endif %}
             </div>
 
+            <!-- Personal Token Section -->
+            <div class="settings-section">
+                <h3>Personal Access Token</h3>
+                <p class="settings-hint">
+                    Generate a token to authenticate API requests programmatically.
+                    The token is only shown once — copy it before closing this panel.
+                </p>
+                <div class="settings-row">
+                    <button class="btn btn-primary" onclick="generateToken()">Generate Token</button>
+                    <button class="btn btn-secondary" id="revoke-token-btn"
+                            onclick="revokeToken()"{% if not has_token %} style="display:none"{% endif %}>Revoke</button>
+                </div>
+                <div id="token-output" class="settings-row" style="display:none">
+                    <input type="text" id="token-value" class="input-field" readonly
+                           aria-label="Personal access token">
+                    <button class="btn btn-secondary" onclick="copyToken()">Copy</button>
+                </div>
+                <div id="token-status" class="status-msg"></div>
+            </div>
+
             <button class="btn btn-secondary" onclick="toggleSettings()">Close</button>
         </div>
     </div>

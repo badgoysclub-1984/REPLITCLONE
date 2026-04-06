@@ -26,7 +26,8 @@ def home():
     """Render the main editor page."""
     return render_template('index.html',
                            github_user=session.get('github_user'),
-                           gemini_configured=bool(session.get('gemini_api_key')))
+                           gemini_configured=bool(session.get('gemini_api_key')),
+                           has_token=bool(session.get('personal_token')))
 
 
 @app.route('/run', methods=['POST'])
@@ -179,6 +180,32 @@ def github_status():
     if user:
         return jsonify({'linked': True, 'user': user})
     return jsonify({'linked': False})
+
+
+# ---------------------------------------------------------------------------
+# Personal access token
+# ---------------------------------------------------------------------------
+
+@app.route('/api/token', methods=['POST'])
+def generate_token():
+    """Generate a new personal access token and store it in the session."""
+    token = secrets.token_urlsafe(32)
+    session['personal_token'] = token
+    return jsonify({'status': 'ok', 'token': token})
+
+
+@app.route('/api/token', methods=['DELETE'])
+def revoke_token():
+    """Revoke the current personal access token."""
+    session.pop('personal_token', None)
+    return jsonify({'status': 'ok', 'message': 'Token revoked'})
+
+
+@app.route('/api/token', methods=['GET'])
+def token_status():
+    """Return whether a personal access token is currently active."""
+    has_token = bool(session.get('personal_token'))
+    return jsonify({'has_token': has_token})
 
 
 if __name__ == "__main__":
