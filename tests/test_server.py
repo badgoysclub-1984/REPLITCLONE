@@ -129,6 +129,52 @@ class TestServerRoutes(unittest.TestCase):
             server_module.GITHUB_CLIENT_ID = original
 
     # ------------------------------------------------------------------
+    # Personal access token
+    # ------------------------------------------------------------------
+
+    def test_token_status_no_token(self):
+        resp = self.client.get('/api/token')
+        self.assertEqual(resp.status_code, 200)
+        data = json.loads(resp.data)
+        self.assertFalse(data['has_token'])
+
+    def test_generate_token_returns_token(self):
+        resp = self.client.post('/api/token')
+        self.assertEqual(resp.status_code, 200)
+        data = json.loads(resp.data)
+        self.assertEqual(data['status'], 'ok')
+        self.assertIn('token', data)
+        self.assertTrue(len(data['token']) > 0)
+
+    def test_generate_token_updates_status(self):
+        self.client.post('/api/token')
+        resp = self.client.get('/api/token')
+        self.assertEqual(resp.status_code, 200)
+        data = json.loads(resp.data)
+        self.assertTrue(data['has_token'])
+
+    def test_revoke_token(self):
+        # First generate a token
+        self.client.post('/api/token')
+        # Then revoke it
+        resp = self.client.delete('/api/token')
+        self.assertEqual(resp.status_code, 200)
+        data = json.loads(resp.data)
+        self.assertEqual(data['status'], 'ok')
+
+    def test_revoke_token_clears_status(self):
+        self.client.post('/api/token')
+        self.client.delete('/api/token')
+        resp = self.client.get('/api/token')
+        data = json.loads(resp.data)
+        self.assertFalse(data['has_token'])
+
+    def test_generate_token_replaces_existing(self):
+        first = json.loads(self.client.post('/api/token').data)['token']
+        second = json.loads(self.client.post('/api/token').data)['token']
+        self.assertNotEqual(first, second)
+
+    # ------------------------------------------------------------------
     # Code runner
     # ------------------------------------------------------------------
 

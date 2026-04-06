@@ -132,3 +132,65 @@ function handleChatKey(event) {
         sendChat();
     }
 }
+
+/* ── Personal access token ──────────────────────────────── */
+async function generateToken() {
+    const statusEl = document.getElementById('token-status');
+    try {
+        const resp = await fetch('/api/token', { method: 'POST' });
+        const data = await resp.json();
+        if (resp.ok) {
+            const tokenInput = document.getElementById('token-value');
+            const tokenOutput = document.getElementById('token-output');
+            const revokeBtn = document.getElementById('revoke-token-btn');
+            if (tokenInput) tokenInput.value = data.token;
+            if (tokenOutput) tokenOutput.style.display = '';
+            if (revokeBtn) revokeBtn.style.display = '';
+            setStatus(statusEl, '✅ Token generated. Copy it now — it will not be shown again.', 'ok');
+        } else {
+            setStatus(statusEl, '❌ ' + (data.error || 'Failed to generate token'), 'err');
+        }
+    } catch (e) {
+        setStatus(statusEl, '❌ Network error: ' + e.message, 'err');
+    }
+}
+
+async function revokeToken() {
+    const statusEl = document.getElementById('token-status');
+    try {
+        const resp = await fetch('/api/token', { method: 'DELETE' });
+        const data = await resp.json();
+        if (resp.ok) {
+            const tokenOutput = document.getElementById('token-output');
+            const revokeBtn = document.getElementById('revoke-token-btn');
+            if (tokenOutput) tokenOutput.style.display = 'none';
+            if (revokeBtn) revokeBtn.style.display = 'none';
+            setStatus(statusEl, '✅ ' + data.message, 'ok');
+        } else {
+            setStatus(statusEl, '❌ ' + (data.error || 'Failed to revoke token'), 'err');
+        }
+    } catch (e) {
+        setStatus(statusEl, '❌ Network error: ' + e.message, 'err');
+    }
+}
+
+function copyToken() {
+    const tokenInput = document.getElementById('token-value');
+    const statusEl = document.getElementById('token-status');
+    if (!tokenInput || !tokenInput.value) return;
+    navigator.clipboard.writeText(tokenInput.value).then(() => {
+        setStatus(statusEl, '✅ Token copied to clipboard.', 'ok');
+    }).catch(() => {
+        try {
+            tokenInput.select();
+            const copied = document.execCommand('copy');
+            if (copied) {
+                setStatus(statusEl, '✅ Token copied to clipboard.', 'ok');
+            } else {
+                setStatus(statusEl, '⚠️ Copy failed — please select and copy manually.', 'err');
+            }
+        } catch (e) {
+            setStatus(statusEl, '⚠️ Copy failed — please select and copy manually.', 'err');
+        }
+    });
+}
