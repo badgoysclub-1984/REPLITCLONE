@@ -132,3 +132,43 @@ function handleChatKey(event) {
         sendChat();
     }
 }
+
+/* ── Repository Link Key management ─────────────────────── */
+async function generateRepoLinkKey() {
+    const keyInput = document.getElementById('repo-link-key');
+    const statusEl = document.getElementById('repo-key-status');
+
+    try {
+        const resp = await fetch('/api/repo-link-key', { method: 'POST' });
+        const data = await resp.json();
+        if (resp.ok) {
+            if (keyInput) keyInput.value = data.key;
+            setStatus(statusEl, '✅ Repository link key generated. Copy and store it safely — it won\'t be shown again.', 'ok');
+        } else {
+            setStatus(statusEl, '❌ ' + (data.error || 'Failed to generate key'), 'err');
+        }
+    } catch (e) {
+        setStatus(statusEl, '❌ Network error: ' + e.message, 'err');
+    }
+}
+
+async function revokeRepoLinkKey() {
+    const keyInput = document.getElementById('repo-link-key');
+    const statusEl = document.getElementById('repo-key-status');
+
+    try {
+        const resp = await fetch('/api/repo-link-key', { method: 'DELETE' });
+        const data = await resp.json();
+        if (resp.ok) {
+            if (keyInput) {
+                keyInput.value = '';
+                keyInput.placeholder = 'Click Generate to create a key';
+            }
+            setStatus(statusEl, '✅ ' + data.message, 'ok');
+        } else {
+            setStatus(statusEl, '❌ ' + (data.error || 'Failed to revoke key'), 'err');
+        }
+    } catch (e) {
+        setStatus(statusEl, '❌ Network error: ' + e.message, 'err');
+    }
+}

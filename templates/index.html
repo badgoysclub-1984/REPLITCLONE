@@ -89,6 +89,27 @@
                 {% endif %}
             </div>
 
+            <!-- Repository Link Key Section -->
+            <div class="settings-section">
+                <h3>Repository Link Key</h3>
+                <p class="settings-hint">
+                    Generate a secure key to link GitHub repositories to REPLITCLONE.
+                    Use this key to authenticate repository operations via the API.
+                </p>
+                <div class="settings-row">
+                    <input type="text" id="repo-link-key" class="input-field" readonly
+                           placeholder="Click Generate to create a key"
+                           {% if repo_key_configured %}value="rlk_••••••••••••••••••••••••••••••••"{% endif %}>
+                    <button class="btn btn-primary" onclick="generateRepoLinkKey()">
+                        {% if repo_key_configured %}Regenerate{% else %}Generate{% endif %}
+                    </button>
+                    {% if repo_key_configured %}
+                    <button class="btn btn-secondary" onclick="revokeRepoLinkKey()">Revoke</button>
+                    {% endif %}
+                </div>
+                <div id="repo-key-status" class="status-msg"></div>
+            </div>
+
             <button class="btn btn-secondary" onclick="toggleSettings()">Close</button>
         </div>
     </div>
