@@ -232,3 +232,59 @@ body {
 }
 .badge-ok   { background: #1a3a1a; color: #4ec94e; }
 .badge-warn { background: #3a2a00; color: #e0a800; }
+
+/* ── Terminal button ─────────────────────────────────────── */
+.btn-terminal { background: #1a1a2e; color: #a0c4ff; border: 1px solid #3a3a6e; }
+
+/* ── Terminal Panel ──────────────────────────────────────── */
+.terminal-panel {
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    height: 300px;
+    border-top: 2px solid #3a3a6e;
+    background: #0d0d0d;
+}
+.terminal-panel.hidden { display: none; }
+
+.terminal-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 4px 12px;
+    background: #1a1a2e;
+    border-bottom: 1px solid #3a3a6e;
+    flex-shrink: 0;
+}
+
+.terminal-toolbar-title {
+    font-size: 0.82rem;
+    color: #a0c4ff;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.terminal-toolbar-actions {
+    display: flex;
+    gap: 6px;
+}
+
+.terminal-container {
+    flex: 1;
+    overflow: hidden;
+    padding: 4px;
+}
+
+/* ── SSH modal labels ────────────────────────────────────── */
+.input-label {
+    font-size: 0.82rem;
+    color: #aaa;
+    min-width: 70px;
+    flex-shrink: 0;
+}
+
+.input-field-sm {
+    max-width: 90px;
+}
+

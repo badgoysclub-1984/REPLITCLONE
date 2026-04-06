@@ -1,8 +1,10 @@
 """Web server for REPLITCLONE"""
 import os
 import secrets
+import threading
 import requests
 from flask import Flask, render_template, request, jsonify, redirect, session, url_for
+from flask_socketio import SocketIO, emit, disconnect
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -14,11 +16,17 @@ app = Flask(
 )
 app.secret_key = os.environ.get('SECRET_KEY', secrets.token_hex(32))
 
+socketio = SocketIO(app, async_mode='eventlet', cors_allowed_origins='*')
+
 GITHUB_CLIENT_ID = os.environ.get('GITHUB_CLIENT_ID', '')
 GITHUB_CLIENT_SECRET = os.environ.get('GITHUB_CLIENT_SECRET', '')
 GITHUB_AUTHORIZE_URL = 'https://github.com/login/oauth/authorize'
 GITHUB_TOKEN_URL = 'https://github.com/login/oauth/access_token'
 GITHUB_API_USER_URL = 'https://api.github.com/user'
+
+# Active SSH sessions keyed by Socket.IO session id
+_ssh_sessions: dict = {}
+_ssh_sessions_lock = threading.Lock()
 
 
 @app.route('/')
@@ -181,6 +189,170 @@ def github_status():
     return jsonify({'linked': False})
 
 
+# ---------------------------------------------------------------------------
+# SSH Terminal – Socket.IO events
+# ---------------------------------------------------------------------------
+
+def _emit_ssh_output(sid, raw_bytes):
+    """Decode raw bytes from an SSH channel and forward them to the client."""
+    socketio.emit('ssh_output', {'data': raw_bytes.decode('utf-8', errors='replace')}, to=sid)
+
+
+def _ssh_reader(sid, channel):
+    """Background thread: read SSH channel output and forward to the client."""
+    try:
+        while True:
+            if channel.closed:
+                break
+            if channel.recv_ready():
+                data = channel.recv(4096)
+                if not data:
+                    break
+                _emit_ssh_output(sid, data)
+            if channel.recv_stderr_ready():
+                data = channel.recv_stderr(4096)
+                if data:
+                    _emit_ssh_output(sid, data)
+            socketio.sleep(0.05)
+    except Exception:
+        pass
+    finally:
+        socketio.emit('ssh_disconnected', {'reason': 'Channel closed'}, to=sid)
+        _cleanup_ssh_session(sid)
+
+
+def _cleanup_ssh_session(sid):
+    """Close and remove an SSH session."""
+    with _ssh_sessions_lock:
+        entry = _ssh_sessions.pop(sid, None)
+    if entry:
+        try:
+            entry['channel'].close()
+        except Exception:
+            pass
+        try:
+            entry['client'].close()
+        except Exception:
+            pass
+
+
+@socketio.on('ssh_connect')
+def handle_ssh_connect(data):
+    """Open an SSH connection and start an interactive shell."""
+    import paramiko
+
+    sid = request.sid  # type: ignore[attr-defined]
+    host = data.get('host', '192.168.1.56').strip()
+    port_raw = data.get('port', 22)
+    username = data.get('username', '').strip()
+    password = data.get('password', '')
+    cols = int(data.get('cols', 220))
+    rows = int(data.get('rows', 50))
+
+    if not username:
+        emit('ssh_error', {'message': 'Username is required'})
+        return
+
+    try:
+        port = int(port_raw)
+        if not 1 <= port <= 65535:
+            raise ValueError
+    except (ValueError, TypeError):
+        emit('ssh_error', {'message': 'Port must be an integer between 1 and 65535'})
+        return
+
+    client = paramiko.SSHClient()
+    client.load_system_host_keys()
+    try:
+        client.load_host_keys(os.path.expanduser('~/.ssh/known_hosts'))
+    except (FileNotFoundError, OSError):
+        # known_hosts not present; RejectPolicy below will reject unknown hosts
+        pass
+    # RejectPolicy prevents MITM attacks by refusing connections to hosts not
+    # present in the system or user known_hosts file.
+    client.set_missing_host_key_policy(paramiko.RejectPolicy())
+
+    try:
+        client.connect(
+            hostname=host,
+            port=port,
+            username=username,
+            password=password,
+            timeout=10,
+            allow_agent=False,
+            look_for_keys=False,
+        )
+    except paramiko.AuthenticationException:
+        emit('ssh_error', {'message': 'Authentication failed – check username / password'})
+        client.close()
+        return
+    except paramiko.SSHException as exc:
+        emit('ssh_error', {'message': f'SSH error: {exc}'})
+        client.close()
+        return
+    except Exception as exc:
+        msg = str(exc)
+        if 'not found in known_hosts' in msg or 'Server' in msg:
+            msg = (f'Host key for {host} not found in known_hosts. '
+                   'Add the host key via ssh-keyscan or connect manually first.')
+        emit('ssh_error', {'message': f'Connection failed: {msg}'})
+        client.close()
+        return
+
+    channel = client.invoke_shell(term='xterm-256color', width=cols, height=rows)
+    channel.setblocking(False)
+
+    with _ssh_sessions_lock:
+        _ssh_sessions[sid] = {'client': client, 'channel': channel}
+
+    emit('ssh_connected', {'host': host, 'username': username})
+
+    reader = threading.Thread(target=_ssh_reader, args=(sid, channel), daemon=True)
+    reader.start()
+
+
+@socketio.on('ssh_input')
+def handle_ssh_input(data):
+    """Forward keystrokes from the browser to the SSH channel."""
+    sid = request.sid  # type: ignore[attr-defined]
+    with _ssh_sessions_lock:
+        entry = _ssh_sessions.get(sid)
+    if entry:
+        try:
+            entry['channel'].send(data.get('data', ''))
+        except Exception:
+            pass
+
+
+@socketio.on('ssh_resize')
+def handle_ssh_resize(data):
+    """Resize the remote PTY when the xterm.js terminal is resized."""
+    sid = request.sid  # type: ignore[attr-defined]
+    with _ssh_sessions_lock:
+        entry = _ssh_sessions.get(sid)
+    if entry:
+        try:
+            entry['channel'].resize_pty(width=int(data.get('cols', 80)),
+                                        height=int(data.get('rows', 24)))
+        except Exception:
+            pass
+
+
+@socketio.on('ssh_disconnect_request')
+def handle_ssh_disconnect_request(data=None):
+    """Close the active SSH session on request."""
+    sid = request.sid  # type: ignore[attr-defined]
+    _cleanup_ssh_session(sid)
+    emit('ssh_disconnected', {'reason': 'Disconnected by user'})
+
+
+@socketio.on('disconnect')
+def handle_disconnect():
+    """Clean up SSH sessions when a Socket.IO client disconnects."""
+    sid = request.sid  # type: ignore[attr-defined]
+    _cleanup_ssh_session(sid)
+
+
 if __name__ == "__main__":
-    app.run(debug=True)
+    socketio.run(app, debug=True)
 
